@@ -10,7 +10,7 @@ on:
         default: "."
       node_version:
         type: string
-        default: "22"
+        default: "20"
       format_script:
         type: string
         default: "fmt"
