@@ -23,11 +23,11 @@ on:
       run_auto_commit:
         type: boolean
         default: false
-      secrets:
-        APP_ID:
-          required: false
-        APP_KEY:
-          required: false
+    secrets:
+      APP_ID:
+        required: false
+      APP_KEY:
+        required: false
 
 
 jobs:
