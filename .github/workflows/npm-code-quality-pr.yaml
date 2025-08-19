@@ -1,5 +1,5 @@
 # workflowの名前
-name: [npm] Code Quality (format/lint/typecheck)
+name: "[npm] Code Quality (format/lint/typecheck)"
 
 # workflowのトリガー
 on:
