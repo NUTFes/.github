@@ -23,11 +23,6 @@ on:
       run_auto_commit:
         type: boolean
         default: false
-    secrets:
-      APP_ID:
-        required: false
-      APP_KEY:
-        required: false
 
 
 jobs:
@@ -84,7 +79,11 @@ jobs:
       # push が必要なときだけ App トークンを発行
       - name: Create GitHub App token (for push)
         id: app
-        if: ${{ inputs.run_auto_commit && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && secrets.APP_ID && secrets.APP_KEY }}
+        if: >-
+          ${{ inputs.run_auto_commit &&
+            github.event_name == 'pull_request' &&
+            !github.event.pull_request.head.repo.fork
+          }}
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.APP_ID }}
