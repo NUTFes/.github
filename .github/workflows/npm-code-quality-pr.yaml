@@ -1,0 +1,102 @@
+# workflowの名前
+name: [npm] Code Quality (format/lint/typecheck)
+
+# workflowのトリガー
+on:
+  workflow_call:
+    inputs:
+      workdir:
+        type: string
+        default: "."
+      node_version:
+        type: string
+        default: "22"
+      format_script:
+        type: string
+        default: "fmt"
+      lint_script:
+        type: string
+        default: "lint-fix"
+      typecheck_script:
+        type: string
+        default: "type-check"
+      run_auto_commit:
+        type: boolean
+        default: false
+      secrets:
+        APP_ID:
+          required: false
+        APP_KEY:
+          required: false
+
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.workdir }}/package-lock.json
+      
+      - name: Install Dependencies
+        working-directory: ${{ inputs.workdir }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      
+      - name: Format
+        working-directory: ${{ inputs.workdir }}
+        shell: bash
+        run: |
+          if jq -e ".scripts[\"${{ inputs.format_script }}\"]" package.json >/dev/null 2>&1; then
+            npm run "${{ inputs.format_script }}"
+          else
+            npx --yes prettier . --check
+          fi
+
+      - name: Lint
+        working-directory: ${{ inputs.workdir }}
+        shell: bash
+        run: |
+          if jq -e ".scripts[\"${{ inputs.lint_script }}\"]" package.json >/dev/null 2>&1; then
+            npm run "${{ inputs.lint_script }}"
+          fi
+
+      - name: Type Check
+        working-directory: ${{ inputs.workdir }}
+        shell: bash
+        run: |
+          if jq -e ".scripts[\"${{ inputs.typecheck_script }}\"]" package.json >/dev/null 2>&1; then
+            npm run "${{ inputs.typecheck_script }}"
+          elif [ -f tsconfig.json ]; then
+            npx --yes tsc -v >/dev/null 2>&1 && npx --yes tsc --noEmit
+          fi
+
+      # push が必要なときだけ App トークンを発行
+      - name: Create GitHub App token (for push)
+        id: app
+        if: ${{ inputs.run_auto_commit && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && secrets.APP_ID && secrets.APP_KEY }}
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Commit & push changes
+        if: ${{ steps.app.outputs.token }}
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: ${{ inputs.workdir }}
+          author_name: GitHub actions
+          author_email: action@github.com
+          message: "chore: auto format & lint"
+          push: true
+          github_token: ${{ steps.app.outputs.token }}
