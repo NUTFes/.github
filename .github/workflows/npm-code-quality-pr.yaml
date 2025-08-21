@@ -96,6 +96,9 @@ jobs:
           REPO="${{ github.event.pull_request.head.repo.full_name || github.repository }}"
           git remote set-url origin "https://x-access-token:${{ steps.app.outputs.token }}@github.com/${REPO}.git"
 
+      - name: Show changed files (debug)
+        run: git diff
+
       - name: Commit & push changes
         if: ${{ steps.app.outputs.token }}
         uses: EndBug/add-and-commit@v9
