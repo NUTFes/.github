@@ -80,7 +80,7 @@ jobs:
         id: app
         if: >-
           ${{ inputs.run_auto_commit
-            && github.event_name == "pull_request"
+            && github.event_name == 'pull_request'
             && !github.event.pull_request.head.repo.fork }}
         uses: actions/create-github-app-token@v2
         with:
