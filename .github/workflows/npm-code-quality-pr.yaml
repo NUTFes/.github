@@ -24,7 +24,6 @@ on:
         type: boolean
         default: false
 
-
 jobs:
   code-quality:
     runs-on: ubuntu-latest
@@ -36,18 +35,18 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
           persist-credentials: false
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
           cache: npm
           cache-dependency-path: ${{ inputs.workdir }}/package-lock.json
-      
+
       - name: Install Dependencies
         working-directory: ${{ inputs.workdir }}
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
-      
+
       - name: Format
         working-directory: ${{ inputs.workdir }}
         shell: bash
@@ -76,18 +75,26 @@ jobs:
             npx --yes tsc -v >/dev/null 2>&1 && npx --yes tsc --noEmit
           fi
 
-      # push が必要なときだけ App トークンを発行
+      # push が必要なときだけ App token を発行
       - name: Create GitHub App token (for push)
         id: app
         if: >-
-          ${{ inputs.run_auto_commit &&
-            github.event_name == 'pull_request' &&
-            !github.event.pull_request.head.repo.fork
-          }}
+          ${{ inputs.run_auto_commit
+            && github.event_name == "pull_request"
+            && !github.event.pull_request.head.repo.fork }}
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_KEY }}
+
+      # App token を使って認証情報をURLに埋め込む
+      - name: Inject app token into remote
+        if: ${{ inputs.run_auto_commit && steps.app.outputs.token }}
+        shell: bash
+        run: |
+          set -eu
+          REPO="${{ github.event.pull_request.head.repo.full_name || github.repository }}"
+          git remote set-url origin "https://x-access-token:${{ steps.app.outputs.token }}@github.com/${REPO}.git"
 
       - name: Commit & push changes
         if: ${{ steps.app.outputs.token }}
@@ -98,4 +105,3 @@ jobs:
           author_email: action@github.com
           message: "chore: auto format & lint"
           push: true
-          github_token: ${{ steps.app.outputs.token }}
